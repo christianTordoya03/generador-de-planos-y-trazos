@@ -1,4 +1,3 @@
-// script.js
 const canvas = document.getElementById('designCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -15,20 +14,19 @@ function getCoordinates(event) {
   // Para eventos táctiles, usamos event.touches
   if (event.touches && event.touches[0]) {
     return {
-      x: event.touches[0].clientX - rect.left,
-      y: event.touches[0].clientY - rect.top,
+      x: (event.touches[0].clientX - rect.left) * (canvas.width / rect.width),
+      y: (event.touches[0].clientY - rect.top) * (canvas.height / rect.height),
     };
   }
 
   // Para eventos de mouse, usamos offsetX y offsetY
   if (event.offsetX !== undefined && event.offsetY !== undefined) {
     return {
-      x: event.offsetX,
-      y: event.offsetY,
+      x: event.offsetX * (canvas.width / canvas.clientWidth),
+      y: event.offsetY * (canvas.height / canvas.clientHeight),
     };
   }
 
-  // Si no podemos obtener las coordenadas, retornamos valores por defecto
   return { x: 0, y: 0 };
 }
 
@@ -59,17 +57,20 @@ function handleDraw(e) {
   if (drawingMode === 'rectangle') {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar canvas antes de redibujar
     redrawCanvas();  // Redibujar las figuras ya existentes
+    ctx.strokeStyle = 'green';  // Color para el rectángulo
     ctx.strokeRect(startX, startY, x - startX, y - startY);
   } else if (drawingMode === 'circle') {
     const radius = Math.sqrt((x - startX) ** 2 + (y - startY) ** 2);
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar canvas antes de redibujar
     redrawCanvas();  // Redibujar las figuras ya existentes
+    ctx.strokeStyle = 'blue';  // Color para el círculo
     ctx.beginPath();
     ctx.arc(startX, startY, radius, 0, Math.PI * 2);
     ctx.stroke();
   } else if (drawingMode === 'line') {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar canvas antes de redibujar
     redrawCanvas();  // Redibujar las figuras ya existentes
+    ctx.strokeStyle = 'red';  // Color para la línea
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     ctx.lineTo(x, y);
@@ -81,12 +82,15 @@ function handleDraw(e) {
 function redrawCanvas() {
   shapes.forEach((shape) => {
     if (shape.type === 'rectangle') {
+      ctx.strokeStyle = 'green';
       ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
     } else if (shape.type === 'circle') {
+      ctx.strokeStyle = 'blue';
       ctx.beginPath();
       ctx.arc(shape.x, shape.y, shape.radius, 0, Math.PI * 2);
       ctx.stroke();
     } else if (shape.type === 'line') {
+      ctx.strokeStyle = 'red';
       ctx.beginPath();
       ctx.moveTo(shape.x1, shape.y1);
       ctx.lineTo(shape.x2, shape.y2);
@@ -114,7 +118,7 @@ function finishDrawing() {
   isDrawing = false; // Terminar el dibujo
 }
 
-// Inicia los eventos del mouse y tactiles
+// Inicia los eventos del mouse y táctiles
 canvas.addEventListener('mousedown', (e) => {
   startDrawing(e);
   canvas.addEventListener('mousemove', handleDraw);
@@ -140,26 +144,35 @@ canvas.addEventListener('touchend', () => {
 document.getElementById('drawRectangle').addEventListener('click', () => {
   drawingMode = 'rectangle';
   isErasing = false;
+  resetButtonColors();  // Resetear los colores de los botones
+  document.getElementById('drawRectangle').style.backgroundColor = 'green'; // Color activo
 });
 
 document.getElementById('drawCircle').addEventListener('click', () => {
   drawingMode = 'circle';
   isErasing = false;
+  resetButtonColors();  // Resetear los colores de los botones
+  document.getElementById('drawCircle').style.backgroundColor = 'blue'; // Color activo
 });
 
 document.getElementById('drawLine').addEventListener('click', () => {
   drawingMode = 'line';
   isErasing = false;
+  resetButtonColors();  // Resetear los colores de los botones
+  document.getElementById('drawLine').style.backgroundColor = 'red'; // Color activo
 });
 
 document.getElementById('addText').addEventListener('click', () => {
   drawingMode = 'text';
   isErasing = false;
+  resetButtonColors();  // Resetear los colores de los botones
+  document.getElementById('addText').style.backgroundColor = 'purple'; // Color activo
 });
 
 document.getElementById('erase').addEventListener('click', () => {
   drawingMode = null;
   isErasing = true;
+  resetButtonColors();  // Resetear los colores de los botones
 });
 
 document.getElementById('clearCanvas').addEventListener('click', () => {
@@ -173,3 +186,11 @@ document.getElementById('exportImage').addEventListener('click', () => {
   link.href = canvas.toDataURL();
   link.click();
 });
+
+// Resetear el color de fondo de los botones
+function resetButtonColors() {
+  const buttons = document.querySelectorAll('.toolbar button');
+  buttons.forEach(button => {
+    button.style.backgroundColor = '#4CAF50'; // Color predeterminado
+  });
+}
