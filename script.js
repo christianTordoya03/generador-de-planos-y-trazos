@@ -4,10 +4,139 @@ const ctx = canvas.getContext('2d');
 
 let drawingMode = null;
 let startX, startY;
-let shapes = []; // Store shapes for erasing and redrawing
+let shapes = [];
 let isErasing = false;
+let isDrawing = false;  // Estado para determinar si estamos dibujando una figura
 
-// Tools
+// Handle touch/mouse events and prevent default mobile behaviors like text selection
+function getCoordinates(event) {
+  const rect = canvas.getBoundingClientRect();
+
+  // Para eventos táctiles, usamos event.touches
+  if (event.touches && event.touches[0]) {
+    return {
+      x: event.touches[0].clientX - rect.left,
+      y: event.touches[0].clientY - rect.top,
+    };
+  }
+
+  // Para eventos de mouse, usamos offsetX y offsetY
+  if (event.offsetX !== undefined && event.offsetY !== undefined) {
+    return {
+      x: event.offsetX,
+      y: event.offsetY,
+    };
+  }
+
+  // Si no podemos obtener las coordenadas, retornamos valores por defecto
+  return { x: 0, y: 0 };
+}
+
+// Inicia el dibujo
+function startDrawing(e) {
+  const { x, y } = getCoordinates(e);
+  startX = x;
+  startY = y;
+  isDrawing = true; // Marcar que estamos dibujando
+
+  if (drawingMode === 'text') {
+    const text = prompt('Ingrese el texto:');
+    const fontSize = prompt('Tamaño de fuente (px):', '20');
+    if (text) {
+      ctx.font = `${fontSize}px Arial`;
+      ctx.fillText(text, startX, startY);
+      shapes.push({ type: 'text', x: startX, y: startY, text, fontSize });
+    }
+  }
+}
+
+// Dibuja en el canvas
+function handleDraw(e) {
+  if (!isDrawing) return; // No dibujar si no estamos en modo de dibujo
+
+  const { x, y } = getCoordinates(e);
+
+  if (drawingMode === 'rectangle') {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar canvas antes de redibujar
+    redrawCanvas();  // Redibujar las figuras ya existentes
+    ctx.strokeRect(startX, startY, x - startX, y - startY);
+  } else if (drawingMode === 'circle') {
+    const radius = Math.sqrt((x - startX) ** 2 + (y - startY) ** 2);
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar canvas antes de redibujar
+    redrawCanvas();  // Redibujar las figuras ya existentes
+    ctx.beginPath();
+    ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (drawingMode === 'line') {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar canvas antes de redibujar
+    redrawCanvas();  // Redibujar las figuras ya existentes
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  }
+}
+
+// Redibuja todas las figuras en el canvas
+function redrawCanvas() {
+  shapes.forEach((shape) => {
+    if (shape.type === 'rectangle') {
+      ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+    } else if (shape.type === 'circle') {
+      ctx.beginPath();
+      ctx.arc(shape.x, shape.y, shape.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (shape.type === 'line') {
+      ctx.beginPath();
+      ctx.moveTo(shape.x1, shape.y1);
+      ctx.lineTo(shape.x2, shape.y2);
+      ctx.stroke();
+    } else if (shape.type === 'text') {
+      ctx.font = `${shape.fontSize}px Arial`;
+      ctx.fillText(shape.text, shape.x, shape.y);
+    }
+  });
+}
+
+// Finaliza el dibujo y guarda la figura
+function finishDrawing() {
+  const { x, y } = getCoordinates(event);
+
+  if (drawingMode === 'rectangle') {
+    shapes.push({ type: 'rectangle', x: startX, y: startY, width: x - startX, height: y - startY });
+  } else if (drawingMode === 'circle') {
+    const radius = Math.sqrt((x - startX) ** 2 + (y - startY) ** 2);
+    shapes.push({ type: 'circle', x: startX, y: startY, radius });
+  } else if (drawingMode === 'line') {
+    shapes.push({ type: 'line', x1: startX, y1: startY, x2: x, y2: y });
+  }
+
+  isDrawing = false; // Terminar el dibujo
+}
+
+// Inicia los eventos del mouse y tactiles
+canvas.addEventListener('mousedown', (e) => {
+  startDrawing(e);
+  canvas.addEventListener('mousemove', handleDraw);
+});
+
+canvas.addEventListener('touchstart', (e) => {
+  startDrawing(e);
+  canvas.addEventListener('touchmove', handleDraw);
+  e.preventDefault(); // Para prevenir el comportamiento de selección de texto en móviles
+});
+
+canvas.addEventListener('mouseup', () => {
+  finishDrawing();
+  canvas.removeEventListener('mousemove', handleDraw);
+});
+
+canvas.addEventListener('touchend', () => {
+  finishDrawing();
+  canvas.removeEventListener('touchmove', handleDraw);
+});
+
+// Herramientas
 document.getElementById('drawRectangle').addEventListener('click', () => {
   drawingMode = 'rectangle';
   isErasing = false;
@@ -38,87 +167,9 @@ document.getElementById('clearCanvas').addEventListener('click', () => {
   shapes = [];
 });
 
-canvas.addEventListener('mousedown', (e) => {
-  startX = e.offsetX;
-  startY = e.offsetY;
-
-  if (drawingMode === 'text') {
-    const text = prompt('Ingrese el texto:');
-    const fontSize = prompt('Tamaño de fuente (px):', '20');
-    if (text) {
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillText(text, startX, startY);
-      shapes.push({ type: 'text', x: startX, y: startY, text, fontSize });
-    }
-  }
-});
-
-canvas.addEventListener('mouseup', (e) => {
-  const endX = e.offsetX;
-  const endY = e.offsetY;
-
-  if (drawingMode === 'rectangle') {
-    ctx.strokeRect(startX, startY, endX - startX, endY - startY);
-    shapes.push({ type: 'rectangle', x: startX, y: startY, width: endX - startX, height: endY - startY });
-  } else if (drawingMode === 'circle') {
-    const radius = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
-    ctx.beginPath();
-    ctx.arc(startX, startY, radius, 0, Math.PI * 2);
-    ctx.stroke();
-    shapes.push({ type: 'circle', x: startX, y: startY, radius });
-  } else if (drawingMode === 'line') {
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
-    shapes.push({ type: 'line', x1: startX, y1: startY, x2: endX, y2: endY });
-  } else if (isErasing) {
-    shapes = shapes.filter((shape) => {
-      if (
-        shape.type === 'rectangle' &&
-        startX >= shape.x &&
-        startX <= shape.x + shape.width &&
-        startY >= shape.y &&
-        startY <= shape.y + shape.height
-      ) {
-        return false;
-      }
-      if (
-        shape.type === 'circle' &&
-        Math.sqrt((startX - shape.x) ** 2 + (startY - shape.y) ** 2) <= shape.radius
-      ) {
-        return false;
-      }
-      return true;
-    });
-    redrawCanvas();
-  }
-});
-
-function redrawCanvas() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  shapes.forEach((shape) => {
-    if (shape.type === 'rectangle') {
-      ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
-    } else if (shape.type === 'circle') {
-      ctx.beginPath();
-      ctx.arc(shape.x, shape.y, shape.radius, 0, Math.PI * 2);
-      ctx.stroke();
-    } else if (shape.type === 'line') {
-      ctx.beginPath();
-      ctx.moveTo(shape.x1, shape.y1);
-      ctx.lineTo(shape.x2, shape.y2);
-      ctx.stroke();
-    } else if (shape.type === 'text') {
-      ctx.font = `${shape.fontSize}px Arial`;
-      ctx.fillText(shape.text, shape.x, shape.y);
-    }
-  });
-}
-
 document.getElementById('exportImage').addEventListener('click', () => {
   const link = document.createElement('a');
-  link.download = 'PrimeHomeworks.png';
+  link.download = 'design.png';
   link.href = canvas.toDataURL();
   link.click();
 });
